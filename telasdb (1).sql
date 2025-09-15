@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: 127.0.0.1
--- Tempo de geração: 12/09/2025 às 08:30
+-- Tempo de geração: 15/09/2025 às 03:13
 -- Versão do servidor: 10.4.32-MariaDB
 -- Versão do PHP: 8.2.12
 
@@ -30,7 +30,7 @@ SET time_zone = "+00:00";
 CREATE TABLE `baterias` (
   `id` int(11) NOT NULL,
   `nome` varchar(100) NOT NULL,
-  `modelo` varchar(50) NOT NULL,
+  `modelo` varchar(50) DEFAULT NULL,
   `preco` decimal(10,2) NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
@@ -192,6 +192,35 @@ INSERT INTO `baterias` (`id`, `nome`, `modelo`, `preco`) VALUES
 -- --------------------------------------------------------
 
 --
+-- Estrutura para tabela `pedidos`
+--
+
+CREATE TABLE `pedidos` (
+  `id` int(11) NOT NULL,
+  `cliente_nome` varchar(100) NOT NULL,
+  `numero` varchar(20) NOT NULL,
+  `pagamento` varchar(20) NOT NULL,
+  `data` timestamp NOT NULL DEFAULT current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+-- --------------------------------------------------------
+
+--
+-- Estrutura para tabela `pedido_itens`
+--
+
+CREATE TABLE `pedido_itens` (
+  `id` int(11) NOT NULL,
+  `pedido_id` int(11) NOT NULL,
+  `tipo` enum('tela','bateria') NOT NULL,
+  `nome` varchar(100) NOT NULL,
+  `qualidade` varchar(50) DEFAULT NULL,
+  `preco` decimal(10,2) NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+-- --------------------------------------------------------
+
+--
 -- Estrutura para tabela `telas`
 --
 
@@ -225,6 +254,19 @@ ALTER TABLE `baterias`
   ADD PRIMARY KEY (`id`);
 
 --
+-- Índices de tabela `pedidos`
+--
+ALTER TABLE `pedidos`
+  ADD PRIMARY KEY (`id`);
+
+--
+-- Índices de tabela `pedido_itens`
+--
+ALTER TABLE `pedido_itens`
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `pedido_id` (`pedido_id`);
+
+--
 -- Índices de tabela `telas`
 --
 ALTER TABLE `telas`
@@ -241,10 +283,32 @@ ALTER TABLE `baterias`
   MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=150;
 
 --
+-- AUTO_INCREMENT de tabela `pedidos`
+--
+ALTER TABLE `pedidos`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
+
+--
+-- AUTO_INCREMENT de tabela `pedido_itens`
+--
+ALTER TABLE `pedido_itens`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
+
+--
 -- AUTO_INCREMENT de tabela `telas`
 --
 ALTER TABLE `telas`
   MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=7;
+
+--
+-- Restrições para tabelas despejadas
+--
+
+--
+-- Restrições para tabelas `pedido_itens`
+--
+ALTER TABLE `pedido_itens`
+  ADD CONSTRAINT `pedido_itens_ibfk_1` FOREIGN KEY (`pedido_id`) REFERENCES `pedidos` (`id`) ON DELETE CASCADE;
 COMMIT;
 
 /*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;
