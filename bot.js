@@ -1,22 +1,63 @@
+console.log("⚡ Bot.js carregado, inicializando...");
 import makeWASocket, { useMultiFileAuthState, DisconnectReason } from "@whiskeysockets/baileys"
+import qrcode from "qrcode-terminal"
 import mysql from "mysql2/promise"
 import fetch from "node-fetch"
 import { exec } from "child_process"
 import path from "path"
 import { fileURLToPath } from "url"
-import fs from "fs"
 import os from "os"
+import fs from "fs"
+
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
+const RUNTIME_BASE = process.pkg ? path.dirname(process.execPath) : __dirname
+
+let config = {}
+try {
+  const rawConfig = fs.readFileSync(new URL("./config.json", import.meta.url))
+  config = JSON.parse(rawConfig)
+} catch (err) {
+  console.error("❌ Erro ao carregar config.json:", err)
+  process.exit(1)
+}
+
+// Base de runtime (se for empacotado com pkg, usa a pasta do .exe)
+const DATA_DIR = path.join(RUNTIME_BASE, 'data')
+
+// Garante que a pasta data existe
+if (!fs.existsSync(DATA_DIR)) {
+  fs.mkdirSync(DATA_DIR, { recursive: true })
+}
+
+// Pastas específicas
+const AUTH_DIR = path.join(DATA_DIR, 'auth')
+const PEDIDOS_DIR = path.join(DATA_DIR, 'pedidos')
+if (!fs.existsSync(PEDIDOS_DIR)) fs.mkdirSync(PEDIDOS_DIR, { recursive: true })
+
+// Caminho da logo (coloque v10.jpg na mesma pasta do .exe)
+const LOGO_PATH = path.join(RUNTIME_BASE, 'v10.jpg')
+
+const configPath = path.join(process.cwd(), "config.json")
 
 // ================= Banco de dados =================
-const db = await mysql.createPool({
-  host: "localhost",
-  user: "root",
-  password: "",
-  database: "telasdb"
-})
+let db
+async function initDB() {
+  db = mysql.createPool({
+    host: "127.0.0.1",   // ou IP do servidor
+    port: 3306,
+    user: "root",
+    password: "@51839043830.Dan",
+    database: "telasdb",
+    waitForConnections: true,
+    connectionLimit: 10,
+    queueLimit: 0
+  })
+}
+
+console.log("✅ Conexão MySQL configurada:", config.db_host, ":", config.db_port)
+
 
 // ================= Clientes (números permitidos) =================
 let clientes = {}
@@ -1162,20 +1203,22 @@ await sock.sendMessage(numero, {
 
 // ================= Bot =================
 async function startBot() {
-  await carregarClientes() // 🔹 carrega clientes do banco antes de iniciar
+  await initDB()
+  await carregarClientes()
 
-  const { state, saveCreds } = await useMultiFileAuthState("auth")
+const { state, saveCreds } = await useMultiFileAuthState(AUTH_DIR)
   const sock = makeWASocket({ auth: state })
-
-  sock.ev.on("connection.update", (u) => {
-    const { connection, lastDisconnect } = u
-    if (connection === "close") {
-      const shouldReconnect = (lastDisconnect.error?.output?.statusCode) !== DisconnectReason.loggedOut
-      if (shouldReconnect) startBot()
-    } else if (connection === "open") {
-      console.log("✅ Bot conectado!")
-    }
-  })
+  
+sock.ev.on("connection.update", (update) => {
+  const { connection, qr } = update
+  if (qr) {
+    console.log("📲 Escaneie o QR abaixo para conectar:")
+    qrcode.generate(qr, { small: true }) // 🔥 mostra o QR no terminal
+  }
+  if (connection === "open") {
+    console.log("✅ Bot conectado!")
+  }
+})
   sock.ev.on("creds.update", saveCreds)
 
 sock.ev.on("messages.upsert", async ({ messages }) => {
@@ -1363,8 +1406,9 @@ if (texto === "finalizar") {
     resposta += `\n💰 Total: R$ ${total.toFixed(2)}\n`
 
     // 🔹 Geração automática do PDF
-    const pdfPath = path.join(__dirname, `pedido_${pedidoId}.pdf`)
-    const pdfPublicPath = path.join(__dirname, "pedidos", `pedido_${pedidoId}.pdf`)
+const pdfPath = path.join(PEDIDOS_DIR, `pedido_${pedidoId}.pdf`)
+const pdfPublicPath = pdfPath
+
     const carrinhoSafe = carrinhos[numero].map(i => ({
   ...i,
   modelo: i.modelo ?? "",
@@ -1399,7 +1443,7 @@ style_data.fontSize = 8
 style_data.alignment = TA_CENTER
 
 logo_esq = None
-logo_path = "v10.jpg"
+logo_path = r"${LOGO_PATH.replace(/\\/g, "\\\\")}"
 if os.path.exists(logo_path):
     logo_esq = Image(logo_path, width=2*cm, height=2*cm)
 else:
